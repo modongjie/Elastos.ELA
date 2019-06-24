@@ -3,11 +3,13 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"github.com/cheggaaa/pb"
 	"os"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/elastos/Elastos.ELA/blockchain"
@@ -330,6 +332,25 @@ out:
 	}
 }
 
+type DiskStatus struct {
+	All  uint64 `json:"all"`
+	Used uint64 `json:"used"`
+	Free uint64 `json:"free"`
+}
+
+// disk usage of path/disk
+func diskUsage(path string) (disk DiskStatus) {
+	fs := syscall.Statfs_t{}
+	err := syscall.Statfs(path, &fs)
+	if err != nil {
+		return
+	}
+	disk.All = fs.Blocks * uint64(fs.Bsize)
+	disk.Free = fs.Bfree * uint64(fs.Bsize)
+	disk.Used = disk.All - disk.Free
+	return
+}
+
 func printSyncState(db blockchain.IChainStore, server elanet.Server) {
 	statlog := elalog.NewBackend(logger.Writer()).Logger("STAT",
 		elalog.LevelInfo)
@@ -353,5 +374,14 @@ func printSyncState(db blockchain.IChainStore, server elanet.Server) {
 		}
 		buf.WriteString("]")
 		statlog.Info(buf.String())
+
+		disk := diskUsage(cfg.DiskPath)
+		diskAll := float64(disk.All) / float64(pb.GB)
+		diskFree := float64(disk.Free) / float64(pb.GB)
+		dfPercent := float64(diskFree / diskAll)
+		statlog.Infof("Disk \"%s\" free percent: %.2f%%, all:%.2fG, "+
+			"used:%.2fG, free:%.2fG", cfg.DiskPath, dfPercent*100,
+			float64(disk.All)/float64(pb.GB), float64(disk.Used)/float64(pb.GB),
+			float64(disk.Free)/float64(pb.GB))
 	}
 }

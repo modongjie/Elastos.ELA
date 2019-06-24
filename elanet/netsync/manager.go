@@ -184,6 +184,8 @@ func (sm *SyncManager) startSync() {
 
 		sm.syncPeer = bestPeer
 		sm.syncHeight = bestPeer.Height()
+		log.Info("Push get blocks message to peer %s, "+
+			"sync height:%d", sm.syncPeer, sm.syncHeight)
 		bestPeer.PushGetBlocksMsg(locator, &zeroHash)
 	} else {
 		log.Warnf("No sync peer candidates available")
@@ -397,7 +399,7 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 
 	// Process the block to include validation, best chain selection, orphan
 	// handling, etc.
-	log.Debugf("Receive block %s at height %d", blockHash,
+	log.Info("Receive block %s at height %d", blockHash,
 		bmsg.block.Block.Height)
 	_, isOrphan, err := sm.blockMemPool.AddDposBlock(bmsg.block)
 	if err != nil {
@@ -426,6 +428,8 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 				sm.syncHeight = bmsg.block.Block.Height
 			}
 			if sm.syncPeer == peer {
+				log.Info("Push get blocks message to peer %s, "+
+					"sync height:%d", sm.syncPeer, sm.syncHeight)
 				peer.PushGetBlocksMsg(locator, orphanRoot)
 			}
 		}
@@ -490,6 +494,8 @@ func (sm *SyncManager) handleInvMsg(imsg *invMsg) {
 	// Ignore invs from peers that aren't the sync if we are not current.
 	// Helps prevent fetching a mass of orphans.
 	if peer != sm.syncPeer && !sm.current() {
+		log.Warnf("Received inv message from unknown peer %s, but have "+
+			"syncPeer:%s and is syncing", peer, sm.syncPeer)
 		return
 	}
 
@@ -561,6 +567,8 @@ func (sm *SyncManager) handleInvMsg(imsg *invMsg) {
 					sm.syncHeight = sm.chain.GetOrphan(&iv.Hash).Block.Height
 				}
 				if sm.syncPeer == peer {
+					log.Info("Push get blocks message to peer %s, "+
+						"sync height:%d", sm.syncPeer, sm.syncHeight)
 					peer.PushGetBlocksMsg(locator, orphanRoot)
 				}
 				continue

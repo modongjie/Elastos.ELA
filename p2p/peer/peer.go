@@ -525,18 +525,35 @@ func (p *Peer) readMessage() (p2p.Message, error) {
 	msg, err := p2p.ReadMessage(p.conn, p.cfg.Magic, p.makeEmptyMessage)
 	// Use closures to log expensive operations so they are only run when
 	// the logging level requires it.
-	log.Debugf("%v", newLogClosure(func() string {
-		if err != nil {
-			return fmt.Sprintf("Read message failed, %s", err)
-		}
 
-		// Debug summary of message.
-		summary := messageSummary(msg)
-		if len(summary) > 0 {
-			summary = " (" + summary + ")"
-		}
-		return fmt.Sprintf("Received %v%s from %s", msg.CMD(), summary, p)
-	}))
+	if msg != nil && (msg.CMD() == p2p.CmdBlock || msg.CMD() == p2p.CmdGetBlocks ||
+		msg.CMD() == p2p.CmdGetData || msg.CMD() == p2p.CmdInv) {
+		log.Infof("%v", newLogClosure(func() string {
+			if err != nil {
+				return fmt.Sprintf("Read message failed, %s", err)
+			}
+
+			// Debug summary of message.
+			summary := messageSummary(msg)
+			if len(summary) > 0 {
+				summary = " (" + summary + ")"
+			}
+			return fmt.Sprintf("Received %v%s from %s", msg.CMD(), summary, p)
+		}))
+	} else {
+		log.Debugf("%v", newLogClosure(func() string {
+			if err != nil {
+				return fmt.Sprintf("Read message failed, %s", err)
+			}
+
+			// Debug summary of message.
+			summary := messageSummary(msg)
+			if len(summary) > 0 {
+				summary = " (" + summary + ")"
+			}
+			return fmt.Sprintf("Received %v%s from %s", msg.CMD(), summary, p)
+		}))
+	}
 
 	return msg, err
 }
@@ -549,14 +566,26 @@ func (p *Peer) writeMessage(m p2p.Message) error {
 
 	// Use closures to log expensive operations so they are only run when
 	// the logging level requires it.
-	log.Debugf("%v", newLogClosure(func() string {
-		// Debug summary of message.
-		summary := messageSummary(m)
-		if len(summary) > 0 {
-			summary = " (" + summary + ")"
-		}
-		return fmt.Sprintf("Sending %v%s to %s", m.CMD(), summary, p)
-	}))
+	if m != nil && (m.CMD() == p2p.CmdBlock || m.CMD() == p2p.CmdGetBlocks ||
+		m.CMD() == p2p.CmdGetData || m.CMD() == p2p.CmdInv) {
+		log.Infof("%v", newLogClosure(func() string {
+			// Debug summary of message.
+			summary := messageSummary(m)
+			if len(summary) > 0 {
+				summary = " (" + summary + ")"
+			}
+			return fmt.Sprintf("Sending %v%s to %s", m.CMD(), summary, p)
+		}))
+	} else {
+		log.Debugf("%v", newLogClosure(func() string {
+			// Debug summary of message.
+			summary := messageSummary(m)
+			if len(summary) > 0 {
+				summary = " (" + summary + ")"
+			}
+			return fmt.Sprintf("Sending %v%s to %s", m.CMD(), summary, p)
+		}))
+	}
 
 	// Write the message to the peer.
 	return p2p.WriteMessage(p.conn, p.cfg.Magic, m,

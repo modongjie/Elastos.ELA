@@ -541,7 +541,7 @@ func (c *ChainStore) persist(b *Block, confirm *payload.Confirm) error {
 }
 
 func (c *ChainStore) SaveBlock(b *Block, confirm *payload.Confirm) error {
-	log.Debug("SaveBlock()")
+	log.Info("SaveBlock() height:", b.Height)
 
 	reply := make(chan error)
 	c.taskCh <- &persistBlockTask{block: b, confirm: confirm, reply: reply}

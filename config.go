@@ -78,6 +78,9 @@ func loadConfigParams(cfg *config.Configuration) (*config.Configuration, error) 
 		pact.MaxBlockSize = 2000000
 	}
 
+	if cfg.DiskPath == "" {
+		cfg.DiskPath = "/"
+	}
 	if cfg.MaxBlockSize > 0 {
 		pact.MaxBlockSize = cfg.MaxBlockSize
 	}
