@@ -525,7 +525,7 @@ func (p *Peer) readMessage() (p2p.Message, error) {
 	msg, err := p2p.ReadMessage(p.conn, p.cfg.Magic, p.makeEmptyMessage)
 	// Use closures to log expensive operations so they are only run when
 	// the logging level requires it.
-	log.Debugf("%v", newLogClosure(func() string {
+	log.Debugf("### end readMessage %v", newLogClosure(func() string {
 		if err != nil {
 			return fmt.Sprintf("Read message failed, %s", err)
 		}

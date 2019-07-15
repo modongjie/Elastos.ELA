@@ -3,6 +3,7 @@ package p2p
 import (
 	"bytes"
 	"fmt"
+	"github.com/elastos/Elastos.ELA/common/log"
 	"io"
 	"sync"
 
@@ -85,6 +86,7 @@ func ReadMessage(r io.Reader, magic uint32, makeEmptyMessage MakeEmptyMessage) (
 		return nil, ErrInvalidHeader
 	}
 
+	log.Info("### start readMessage ", hdr.GetCMD())
 	// Check for messages from wrong network
 	if hdr.Magic != magic {
 		return nil, ErrUnmatchedMagic

@@ -184,6 +184,7 @@ func (sm *SyncManager) startSync() {
 
 		sm.syncPeer = bestPeer
 		sm.syncHeight = bestPeer.Height()
+		log.Info("### startSync pushGetBlocks height:", bestPeer.Height(), bestPeer.String())
 		bestPeer.PushGetBlocksMsg(locator, &zeroHash)
 	} else {
 		log.Warnf("No sync peer candidates available")
@@ -350,6 +351,8 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 		return
 	}
 
+	log.Info("### start handleBlockMsg:", peer.String())
+
 	// If we didn't ask for this block then the peer is misbehaving.
 	blockHash := bmsg.block.Block.Hash()
 
@@ -401,6 +404,7 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 		bmsg.block.Block.Height)
 	_, isOrphan, err := sm.blockMemPool.AddDposBlock(bmsg.block)
 	if err != nil {
+		log.Info("### handleBlockMsg reject block:", peer.String())
 		reason := fmt.Sprintf("Rejected block %v from %s: %v", blockHash,
 			peer, err)
 		log.Info(reason)
@@ -410,6 +414,7 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 	}
 
 	if sm.syncPeer != nil && sm.chain.BestChain.Height >= sm.syncHeight {
+		log.Info("### handleBlockMsg syncPeer set to nil:", peer.String())
 		sm.syncPeer = nil
 	}
 
@@ -421,11 +426,17 @@ func (sm *SyncManager) handleBlockMsg(bmsg *blockMsg) {
 			log.Warnf("Failed to get block locator for the "+
 				"latest block: %v", err)
 		} else {
+			log.Info("### handleBlockMsg isOrphan syncPeer:",
+				sm.syncPeer, "syncHeight:", sm.syncHeight, "blockHeight:",
+				bmsg.block.Block.Height, "p:", peer.String())
 			if sm.syncPeer == nil {
 				sm.syncPeer = peer
 				sm.syncHeight = bmsg.block.Block.Height
 			}
 			if sm.syncPeer == peer {
+				log.Info("### handleBlockMsg pushGetBlocks height:",
+					sm.syncHeight, "syncPeer:", sm.syncPeer, "p:",
+					peer.String(), "height:", bmsg.block.Block.Height)
 				peer.PushGetBlocksMsg(locator, orphanRoot)
 			}
 		}
@@ -490,6 +501,7 @@ func (sm *SyncManager) handleInvMsg(imsg *invMsg) {
 	// Ignore invs from peers that aren't the sync if we are not current.
 	// Helps prevent fetching a mass of orphans.
 	if peer != sm.syncPeer && !sm.current() {
+		log.Info("### handleInvMsg return peer:", peer.String(), "syncPeer:", sm.syncPeer.String(), "current:", sm.current())
 		return
 	}
 
@@ -561,6 +573,9 @@ func (sm *SyncManager) handleInvMsg(imsg *invMsg) {
 					sm.syncHeight = sm.chain.GetOrphan(&iv.Hash).Block.Height
 				}
 				if sm.syncPeer == peer {
+					log.Info("### handleInvMsg pushGetBlocks height:",
+						sm.syncHeight, "syncPeer:", sm.syncPeer, "p:",
+						peer.String(), "height:", sm.chain.GetOrphan(&iv.Hash).Block.Height)
 					peer.PushGetBlocksMsg(locator, orphanRoot)
 				}
 				continue
@@ -652,31 +667,45 @@ out:
 		case m := <-sm.msgChan:
 			switch msg := m.(type) {
 			case *newPeerMsg:
+				log.Info("@@@ newPeerMsg start")
 				sm.handleNewPeerMsg(msg.peer)
+				log.Info("@@@ newPeerMsg end")
 
 			case *txMsg:
+				log.Info("@@@ txMsg start")
 				sm.handleTxMsg(msg)
 				msg.reply <- struct{}{}
+				log.Info("@@@ txMsg end")
 
 			case *blockMsg:
+				log.Info("@@@ blockMsg start")
 				sm.handleBlockMsg(msg)
 				msg.reply <- struct{}{}
+				log.Info("@@@ blockMsg end")
 
 			case *invMsg:
+				log.Info("@@@ invMsg start")
 				sm.handleInvMsg(msg)
+				log.Info("@@@ invMsg end")
 
 			case *donePeerMsg:
+				log.Info("@@@ handleDonePeerMsg start")
 				sm.handleDonePeerMsg(msg.peer)
+				log.Info("@@@ handleDonePeerMsg end")
 
 			case getSyncPeerMsg:
+				log.Info("@@@ getSyncPeerMsg start")
 				var peerID uint64
 				if sm.syncPeer != nil {
 					peerID = sm.syncPeer.ID()
 				}
 				msg.reply <- peerID
+				log.Info("@@@ getSyncPeerMsg end")
 
 			case isCurrentMsg:
+				log.Info("@@@ isCurrentMsg start")
 				msg.reply <- sm.current()
+				log.Info("@@@ isCurrentMsg end")
 
 			case pauseMsg:
 				// Wait until the sender unpauses the manager.
