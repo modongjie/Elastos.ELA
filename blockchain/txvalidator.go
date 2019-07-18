@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"time"
 
 	"github.com/elastos/Elastos.ELA/common"
 	"github.com/elastos/Elastos.ELA/common/config"
@@ -36,56 +37,69 @@ const (
 
 // CheckTransactionSanity verifies received single transaction
 func (b *BlockChain) CheckTransactionSanity(blockHeight uint32, txn *Transaction) ErrCode {
+	var t1 = time.Now()
 	if err := checkTransactionSize(txn); err != nil {
 		log.Warn("[CheckTransactionSize],", err)
 		return ErrTransactionSize
 	}
+	var t2 = time.Now()
 
 	if err := checkTransactionInput(txn); err != nil {
 		log.Warn("[CheckTransactionInput],", err)
 		return ErrInvalidInput
 	}
+	var t3 = time.Now()
 
 	if err := b.checkTransactionOutput(blockHeight, txn); err != nil {
 		log.Warn("[CheckTransactionOutput],", err)
 		return ErrInvalidOutput
 	}
+	var t4 = time.Now()
 
 	if err := checkAssetPrecision(txn); err != nil {
 		log.Warn("[CheckAssetPrecesion],", err)
 		return ErrAssetPrecision
 	}
+	var t5 = time.Now()
 
 	if err := checkAttributeProgram(txn); err != nil {
 		log.Warn("[CheckAttributeProgram],", err)
 		return ErrAttributeProgram
 	}
+	var t6 = time.Now()
 
 	if err := checkTransactionPayload(txn); err != nil {
 		log.Warn("[CheckTransactionPayload],", err)
 		return ErrTransactionPayload
 	}
+	var t7 = time.Now()
 
 	if err := checkDuplicateSidechainTx(txn); err != nil {
 		log.Warn("[CheckDuplicateSidechainTx],", err)
 		return ErrSidechainTxDuplicate
 	}
+	var t8 = time.Now()
 
 	// check items above for Coinbase transaction
 	if txn.IsCoinBaseTx() {
 		return Success
 	}
+	var t9 = time.Now()
+	log.Info("@@@@@ CheckTransactionSanity txType:", txn.TxType.Name(), "t2-t1:", t2.Sub(t1).String(), "t3-t2:", t3.Sub(t2).String(), "t4-t3:", t4.Sub(t3).String(),
+		"t5-t4:", t5.Sub(t4).String(), "t6-t5:", t6.Sub(t5).String(), "t7-t6:", t7.Sub(t6).String(), "t8-t7:", t8.Sub(t7).String(), "t9-t8:", t9.Sub(t8).String())
 
 	return Success
 }
 
 // CheckTransactionContext verifies a transaction with history transaction in ledger
 func (b *BlockChain) CheckTransactionContext(blockHeight uint32, txn *Transaction) ErrCode {
+	var t1 = time.Now()
 	// check if duplicated with transaction in ledger
 	if exist := b.db.IsTxHashDuplicate(txn.Hash()); exist {
 		log.Warn("[CheckTransactionContext] duplicate transaction check failed.")
 		return ErrTransactionDuplicate
 	}
+	var t2 = time.Now()
 
 	switch txn.TxType {
 	case CoinBase:
@@ -169,18 +183,21 @@ func (b *BlockChain) CheckTransactionContext(blockHeight uint32, txn *Transactio
 		}
 		return Success
 	}
+	var t3 = time.Now()
 
 	// check double spent transaction
 	if DefaultLedger.IsDoubleSpend(txn) {
 		log.Warn("[CheckTransactionContext] IsDoubleSpend check failed")
 		return ErrDoubleSpend
 	}
+	var t4 = time.Now()
 
 	references, err := DefaultLedger.Store.GetTxReference(txn)
 	if err != nil {
 		log.Warn("[CheckTransactionContext] get transaction reference failed")
 		return ErrUnknownReferredTx
 	}
+	var t5 = time.Now()
 
 	if txn.IsWithdrawFromSideChainTx() {
 		if err := b.checkWithdrawFromSideChainTransaction(txn, references); err != nil {
@@ -202,36 +219,43 @@ func (b *BlockChain) CheckTransactionContext(blockHeight uint32, txn *Transactio
 			return ErrReturnDepositConsensus
 		}
 	}
+	var t6 = time.Now()
 
 	if err := checkTransactionUTXOLock(txn, references); err != nil {
 		log.Warn("[CheckTransactionUTXOLock],", err)
 		return ErrUTXOLocked
 	}
+	var t7 = time.Now()
 
 	if err := b.checkTransactionFee(txn, references); err != nil {
 		log.Warn("[CheckTransactionFee],", err)
 		return ErrTransactionBalance
 	}
+	var t8 = time.Now()
 
 	if err := checkDestructionAddress(references); err != nil {
 		log.Warn("[CheckDestructionAddress], ", err)
 		return ErrInvalidInput
 	}
+	var t9 = time.Now()
 
 	if err := checkTransactionDepositUTXO(txn, references); err != nil {
 		log.Warn("[CheckTransactionDepositUTXO],", err)
 		return ErrInvalidInput
 	}
+	var t10 = time.Now()
 
 	if err := checkTransactionSignature(txn, references); err != nil {
 		log.Warn("[CheckTransactionSignature],", err)
 		return ErrTransactionSignature
 	}
+	var t11 = time.Now()
 
 	if err := b.checkInvalidUTXO(txn); err != nil {
 		log.Warn("[CheckTransactionCoinbaseLock]", err)
 		return ErrIneffectiveCoinbase
 	}
+	var t12 = time.Now()
 
 	if txn.Version >= TxVersion09 {
 		producers := b.state.GetActiveProducers()
@@ -243,6 +267,10 @@ func (b *BlockChain) CheckTransactionContext(blockHeight uint32, txn *Transactio
 			return ErrInvalidOutput
 		}
 	}
+	var t13 = time.Now()
+	log.Info("@@@@@ CheckTransactionContext txType:", txn.TxType.Name(), "t2-t1:", t2.Sub(t1).String(), "t3-t2:", t3.Sub(t2).String(), "t4-t3:", t4.Sub(t3).String(),
+		"t5-t4:", t5.Sub(t4).String(), "t6-t5:", t6.Sub(t5).String(), "t7-t6:", t7.Sub(t6).String(), "t8-t7:", t8.Sub(t7).String(), "t9-t8:", t9.Sub(t8).String(), "t10-t9:", t10.Sub(t9).String(),
+		"t11-t10:", t11.Sub(t10).String(), "t12-t11:", t12.Sub(t11).String(), "t13-t12:", t13.Sub(t12).String())
 
 	return Success
 }
@@ -1380,8 +1408,8 @@ func checkCRCArbitratorsSignatures(program *program.Program) error {
 
 	crcArbitrators := DefaultLedger.Arbitrators.GetCRCArbitrators()
 	crcArbitratorsCount := len(crcArbitrators)
-	minSignCount := int(float64(crcArbitratorsCount) *
-		state.MajoritySignRatioNumerator / state.MajoritySignRatioDenominator) + 1
+	minSignCount := int(float64(crcArbitratorsCount)*
+		state.MajoritySignRatioNumerator/state.MajoritySignRatioDenominator) + 1
 	if m < 1 || m > n || n != crcArbitratorsCount || m < minSignCount {
 		fmt.Printf("m:%d n:%d minSignCount:%d crc:  %d", m, n, minSignCount, crcArbitratorsCount)
 		return errors.New("invalid multi sign script code")

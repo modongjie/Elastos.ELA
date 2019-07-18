@@ -72,9 +72,9 @@ func (n *network) Start() {
 		for {
 			select {
 			case msgItem := <-n.messageQueue:
-				log.Info("*** processMessage start")
+				log.Info("*** processMessage start msg.CMD:", msgItem.Message.CMD())
 				n.processMessage(msgItem)
-				log.Info("*** processMessage end")
+				log.Info("*** processMessage end msg.CMD:", msgItem.Message.CMD())
 			case <-n.changeViewChan:
 				log.Info("*** changeView start")
 				n.changeView()

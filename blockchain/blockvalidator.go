@@ -24,11 +24,16 @@ const (
 )
 
 func (b *BlockChain) CheckBlockSanity(block *Block) error {
+	log.Info("@@@ CheckBlockSanity start")
+	defer log.Info("@@@ CheckBlockSanity end")
+
+	var t1 = time.Now()
 	header := block.Header
 	hash := header.Hash()
 	if !header.AuxPow.Check(&hash, AuxPowChainID) {
 		return errors.New("[PowCheckBlockSanity] block check aux pow failed")
 	}
+	var t2 = time.Now()
 	if CheckProofOfWork(&header, b.chainParams.PowLimit) != nil {
 		return errors.New("[PowCheckBlockSanity] block check proof of work failed")
 	}
@@ -44,6 +49,7 @@ func (b *BlockChain) CheckBlockSanity(block *Block) error {
 	if tempTime.After(maxTimestamp) {
 		return errors.New("[PowCheckBlockSanity] block timestamp of is too far in the future")
 	}
+	var t3 = time.Now()
 
 	// A block must have at least one transaction.
 	numTx := len(block.Transactions)
@@ -74,6 +80,7 @@ func (b *BlockChain) CheckBlockSanity(block *Block) error {
 			return errors.New("[PowCheckBlockSanity] block contains second coinbase")
 		}
 	}
+	var t4 = time.Now()
 
 	txIDs := make([]Uint256, 0, len(transactions))
 	existingTxIDs := make(map[Uint256]struct{})
@@ -160,6 +167,8 @@ func (b *BlockChain) CheckBlockSanity(block *Block) error {
 		// Append transaction to list
 		txIDs = append(txIDs, txID)
 	}
+	var t5 = time.Now()
+
 	calcTransactionsRoot, err := crypto.ComputeRoot(txIDs)
 	if err != nil {
 		return errors.New("[PowCheckBlockSanity] merkleTree compute failed")
@@ -167,6 +176,8 @@ func (b *BlockChain) CheckBlockSanity(block *Block) error {
 	if !header.MerkleRoot.IsEqual(calcTransactionsRoot) {
 		return errors.New("[PowCheckBlockSanity] block merkle root is invalid")
 	}
+	var t6 = time.Now()
+	log.Info("@@@@ CheckBlockSanity t2-t1:", t2.Sub(t1).String(), "t3-t2:", t3.Sub(t2).String(), "t4-t3:", t4.Sub(t3).String(), "t5-t4:", t5.Sub(t4).String(), "t6-t5:", t6.Sub(t5).String())
 
 	return nil
 }
@@ -174,14 +185,25 @@ func (b *BlockChain) CheckBlockSanity(block *Block) error {
 func (b *BlockChain) checkTxsContext(block *Block) error {
 	var totalTxFee = Fixed64(0)
 
+	var t1 = time.Now()
+
+	var timeCheckTxContext time.Duration
+	var timeGetTxFee time.Duration
 	for i := 1; i < len(block.Transactions); i++ {
+		var tt1 = time.Now()
 		if errCode := b.CheckTransactionContext(block.Height, block.Transactions[i]); errCode != Success {
 			return errors.New("CheckTransactionContext failed when verify block")
 		}
+		var tt2 = time.Now()
 
 		// Calculate transaction fee
 		totalTxFee += GetTxFee(block.Transactions[i], config.ELAAssetID)
+		var tt3 = time.Now()
+		timeCheckTxContext += tt2.Sub(tt1)
+		timeGetTxFee += tt3.Sub(tt2)
 	}
+
+	var t2 = time.Now()
 
 	err := b.checkCoinbaseTransactionContext(block.Height,
 		block.Transactions[0], totalTxFee)
@@ -197,11 +219,16 @@ func (b *BlockChain) checkTxsContext(block *Block) error {
 		log.Error("checkCoinbaseTransactionContext failed,final round change:",
 			DefaultLedger.Arbitrators.GetFinalRoundChange())
 	}
+	var t3 = time.Now()
+	log.Info("@@@@ checkTxsContext len(txs):", len(block.Transactions), "t2-t1:", t2.Sub(t1).String(), "t3-t2:", t3.Sub(t2).String(),
+		"checkTransactionContext:", timeCheckTxContext.String(), "getTxFee:", timeGetTxFee.String())
+
 	return err
 }
 
 func (b *BlockChain) CheckBlockContext(block *Block, prevNode *BlockNode) error {
 	// The genesis block is valid by definition.
+	var t1 = time.Now()
 	if prevNode == nil {
 		return nil
 	}
@@ -217,6 +244,7 @@ func (b *BlockChain) CheckBlockContext(block *Block, prevNode *BlockNode) error 
 		return errors.New("block difficulty is not the expected")
 	}
 
+	var t2 = time.Now()
 	// Ensure the timestamp for the block header is after the
 	// median time of the last several blocks (medianTimeBlocks).
 	medianTime := CalcPastMedianTime(prevNode)
@@ -235,8 +263,13 @@ func (b *BlockChain) CheckBlockContext(block *Block, prevNode *BlockNode) error 
 	if err := DefaultLedger.Arbitrators.CheckDPOSIllegalTx(block); err != nil {
 		return err
 	}
+	var t3 = time.Now()
 
-	return b.checkTxsContext(block)
+	err = b.checkTxsContext(block)
+	var t4 = time.Now()
+	log.Info("@@@@ CheckBlockContext t2-t1:", t2.Sub(t1).String(), "t3-t2:", t3.Sub(t2).String(), "t4-t3:", t4.Sub(t3).String())
+
+	return err
 }
 
 func CheckProofOfWork(header *Header, powLimit *big.Int) error {

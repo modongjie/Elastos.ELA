@@ -3,6 +3,7 @@ package mempool
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/elastos/Elastos.ELA/blockchain"
 	"github.com/elastos/Elastos.ELA/common"
@@ -71,15 +72,19 @@ func (bm *BlockPool) appendBlock(dposBlock *types.DposBlock) (bool, bool, error)
 		return false, false, err
 	}
 	if block.Height == bm.Chain.GetHeight()+1 {
+		var t1 = time.Now()
 		prevNode, exist := bm.Chain.LookupNodeInIndex(&block.Header.Previous)
 		if !exist {
 			log.Info("[AppendBlock] check block context failed, there is no previous block on the chain")
 			return false, false, errors.New("there is no previous block on the chain")
 		}
+		var t2 = time.Now()
 		if err := bm.Chain.CheckBlockContext(block, prevNode); err != nil {
 			log.Info("[AppendBlock] check block context failed, ", err)
 			return false, false, err
 		}
+		var t3 = time.Now()
+		log.Info("@@@@ appendBlock t2-t1:", t2.Sub(t1).String(), "t3-t2:", t3.Sub(t2).String())
 	}
 
 	bm.blocks[block.Hash()] = block
